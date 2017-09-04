@@ -1,0 +1,128 @@
+apply plugin: 'java-library'
+
+apply plugin: "java"
+apply plugin: 'maven'  
+apply plugin: "maven-publish"
+apply plugin: 'signing'
+apply plugin: 'eclipse'
+
+import java.text.SimpleDateFormat
+
+sourceCompatibility=1.6  
+targetCompatibility=1.6
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+tasks.withType(Javadoc) {
+    options.encoding = "UTF-8"    
+}
+
+ext {
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://maven.aliyun.com/nexus/content/groups/public/"
+    }
+    maven {
+        url  ant.properties['user.home'] +  "/.m2/repository"
+    }
+}
+
+task sourcesJar(type: Jar) {
+    classifier "sources"
+    from sourceSets.main.java.srcDirs
+}
+
+task javadocJar(type: Jar, dependsOn:javadoc) { 
+     classifier = "javadoc"
+     from javadoc.destinationDir 
+}
+
+artifacts {  
+    archives jar  
+    archives javadocJar  
+    archives sourcesJar  
+}  
+ 
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact (sourcesJar) {
+                classifier "source"
+            }
+            artifact (javadocJar) {
+                classifier "javadoc"
+            }
+        }
+    }
+}
+  
+dependencies {  
+    compile group: 'commons-logging', name: 'commons-logging', version: '1.1.1'
+    
+    testCompile (
+        'org.testng:testng:6.8.21'
+    )
+    testCompile group: 'commons-io', name: 'commons-io', version: '2.5'
+    
+}
+//为所有的jar包做数字签名  
+signing {  
+    sign configurations.archives  
+}  
+uploadArchives {  
+    repositories {  
+        mavenDeployer {  
+            //为Pom文件做数字签名  
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) } 
+  
+            //指定项目部署到的中央库地址，UserName和Password就是Part 1中注册的账号。
+            //https://oss.sonatype.org/content/repositories/snapshots
+            //https://oss.sonatype.org/service/local/staging/deploy/maven2  
+            repository(url:"https://oss.sonatype.org/service/local/staging/deploy/maven2") {  
+                authentication(userName: 'yufei', password: 'yufeimvn101')  
+            }  
+              
+            pom.project {  
+                name project.name  
+                packaging 'jar'
+                description 'baidu push client api with maven'  
+                url 'https://github.com/featherfly/alipay-sdk.git'  
+  
+                scm {  
+                    url 'scm:git@github.com:featherfly/alipay-sdk.git'  
+                    connection 'scm:git@github.com:featherfly/alipay-sdk.git'  
+                    developerConnection 'git@github.com:featherfly/alipay-sdk.git'  
+                }  
+  
+                licenses {  
+                    license {  
+                        name 'The Apache Software License, Version 2.0'  
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'  
+                        distribution 'repo'  
+                    }  
+                }  
+  
+                developers {  
+                    developer {  
+                        id 'featherfly'  
+                        name 'Yufei'
+                    }  
+                }  
+            }  
+        }  
+    }  
+}
+jar {
+    manifest.attributes 'Build-Name': archivesBaseName
+    manifest.attributes 'Build-By': "zhong ji"
+    manifest.attributes 'Build-Tool' : "gradle " + gradle.gradleVersion
+    manifest.attributes 'Build-Jdk' : ant.properties['java.runtime.version']
+    manifest.attributes 'Build-At' : new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+    manifest.attributes 'Bundle-License': 'http://www.apache.org/licenses/LICENSE-2.0'
+}
